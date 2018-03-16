@@ -2,7 +2,7 @@
 Sparse and Functional PCA with L1 penalty,
 
 ## Rank one approximation
-This program uses EIgen C++ library you can install it with
+This program uses Eigen C++ library you can install it with
 ` sudo apt install libeigen3-dev `
 
 
