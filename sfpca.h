@@ -15,10 +15,10 @@
 %algorithm initialized to the rank-one SVD solution
 %startv: p vector of starting values for V;  if startv=0, then
 %algorithm initialized to the rank-one SVD solution
-%posu: non-negativity indicator - posu = 1 imposes non-negative
-%constraints on u, posu = 0 otherwise
-%posv: non-negativity indicator - posv = 1 imposes non-negative
-%constraints on v, posv = 0 otherwise
+%posu: non-negativity indicator - posu = True imposes non-negative
+%constraints on u, posu = False otherwise
+%posv: non-negativity indicator - posv = True imposes non-negative
+%constraints on v, posv = False otherwise
 %maxit: maximum number of alternating regressions steps
 %%%%%%%%%%%%%%%%
 %outputs:
@@ -40,24 +40,14 @@
 using namespace Eigen;
 using namespace std;
 
-double sign_func(double x)
-{
-    if (x > 0)
-        return +1.0;
-    else if (x == 0)
-        return 0.0;
-    else
-        return -1.0;
-}
-
-MatrixXd soft_thr(MatrixXd a, double lam, double pos){
+MatrixXd soft_thr(MatrixXd a, double lam, bool pos){
 	MatrixXd temp,b,SignMat;
-	if(pos==0){
+	if(!pos){
 		//In MATLAB u = sign(a).*max(abs(a) - lam,0);
 		b = a.array().abs();
 		b.array() -= lam;
 		b.array() = b.array().max(0);
-		SignMat = a.unaryExpr(std::ptr_fun(sign_func));
+		SignMat = a.cwiseSign();
 		temp = (SignMat.array() * b.array()).matrix();
 		return temp;
 	}
@@ -68,9 +58,9 @@ MatrixXd soft_thr(MatrixXd a, double lam, double pos){
 		return temp;
 	}
 }
-
+// Returns the 2-norm or maximum singular value of matrix a
 double Norm(MatrixXd a){
-	JacobiSVD<MatrixXd> Svd(a, ComputeFullU | ComputeFullV);
+	BDCSVD<MatrixXd> Svd(a, ComputeThinU | ComputeThinV);
 	return (Svd.singularValues()).maxCoeff();
 }
 
@@ -84,32 +74,28 @@ MatrixXd * sfpca_fixed(
 	MatrixXd Omegv,
 	MatrixXd startu,
 	MatrixXd startv,
-	double posu,
-	double posv,
+	bool posu,
+	bool posv,
 	double maxit
 	)
 {
 	MatrixXd *Answer =new MatrixXd[4];
-	MatrixXd Lutemp,Lvtemp,u,v,oldu,oldv,oldui,oldvi,utild,vtild;
+	MatrixXd u,v,oldu,oldv,oldui,oldvi,utild,vtild;
 	double n,p,d;
 	n = x.rows();
 	p = x.cols();
-	SparseMatrix<double> Su ,Sv;
-	Su.coeff(n,n);
-	Sv.coeff(p,p);
+	SparseMatrix<double> Su(n,n) ,Sv(p,p);
     Su.setIdentity();
 	Sv.setIdentity();
-	Su += n*alphau*Omegu;
-	Sv += p*alphav*Omegv;
-	Lutemp = MatrixXd(Su).eigenvalues();
-	Lvtemp = MatrixXd(Sv).eigenvalues();
-	double Lu = Lutemp.maxCoeff() + 0.1;
-	double Lv = Lvtemp.maxCoeff() + 0.1;
+	Su += n*alphau*Omegu.sparseView();
+	Sv += p*alphav*Omegv.sparseView();
+	double Lu = MatrixXd(Su).eigenvalues().real().maxCoeff() + 0.1;
+	double Lv = MatrixXd(Sv).eigenvalues().real().maxCoeff() + 0.1;
 	double thr = 1e-6;
 	MatrixXd Xhat = x;
 	
 	if(startu.sum()==0){
-		JacobiSVD<MatrixXd> svd(x, ComputeFullU | ComputeFullV);
+		BDCSVD<MatrixXd> svd(x, ComputeThinU | ComputeThinV);
 		MatrixXd utemp,vtemp;
 		utemp = svd.matrixU();
 		vtemp = svd.matrixV();
