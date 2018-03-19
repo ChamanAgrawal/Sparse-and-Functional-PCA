@@ -40,8 +40,8 @@
 using namespace Eigen;
 using namespace std;
 
-MatrixXd soft_thr(MatrixXd a, double lam, bool pos){
-	MatrixXd temp,b,SignMat;
+VectorXd soft_thr(VectorXd a, double lam, bool pos){
+	VectorXd temp,b,SignMat;
 	if(!pos){
 		//In MATLAB u = sign(a).*max(abs(a) - lam,0);
 		b = a.array().abs();
@@ -58,13 +58,8 @@ MatrixXd soft_thr(MatrixXd a, double lam, bool pos){
 		return temp;
 	}
 }
-// Returns the 2-norm or maximum singular value of matrix a
-double Norm(MatrixXd a){
-	BDCSVD<MatrixXd> Svd(a, ComputeThinU | ComputeThinV);
-	return (Svd.singularValues()).maxCoeff();
-}
 
-MatrixXd * sfpca_fixed(
+void sfpca_fixed(
 	MatrixXd x,
 	double lamu,
 	double lamv,
@@ -72,15 +67,18 @@ MatrixXd * sfpca_fixed(
 	double alphav,
 	MatrixXd Omegu,
 	MatrixXd Omegv,
-	MatrixXd startu,
-	MatrixXd startv,
+	VectorXd startu,
+	VectorXd startv,
 	bool posu,
 	bool posv,
-	double maxit
+	double maxit,
+	VectorXd* U,
+	VectorXd* V,
+	double* D,
+	MatrixXd* Xhat
 	)
 {
-	MatrixXd *Answer =new MatrixXd[4];
-	MatrixXd u,v,oldu,oldv,oldui,oldvi,utild,vtild;
+	VectorXd u,v,oldu,oldv,oldui,oldvi,utild,vtild;
 	double n,p,d;
 	n = x.rows();
 	p = x.cols();
@@ -92,7 +90,7 @@ MatrixXd * sfpca_fixed(
 	double Lu = MatrixXd(Su).eigenvalues().real().maxCoeff() + 0.1;
 	double Lv = MatrixXd(Sv).eigenvalues().real().maxCoeff() + 0.1;
 	double thr = 1e-6;
-	MatrixXd Xhat = x;
+	MatrixXd xhat = x;
 	
 	if(startu.sum()==0){
 		BDCSVD<MatrixXd> svd(x, ComputeThinU | ComputeThinV);
@@ -115,43 +113,44 @@ MatrixXd * sfpca_fixed(
 		double indu = 1;
 		while(indu>thr){
 			oldui = u;
-			utild = u + (Xhat*v - Su*u)/Lu;
+			utild = u + (xhat*v - Su*u)/Lu;
 			u = soft_thr(utild, lamu/Lu, posu);
-			double unorm = Norm(u);
+			double unorm = u.lpNorm<2>() ;
 			if(unorm>0){
 				double mod = ((u.transpose())*Su*u)(0,0);
 				mod = std::sqrt(mod);
 				u = u/mod;
 			}
 			else{
-				u = MatrixXd::Zero(n,1);
+				u = VectorXd::Zero(n,1);
 			}
-			indu = Norm(u-oldui)/Norm(oldui);
+			indu = (u-oldui).lpNorm<2>()/oldui.lpNorm<2>() ;
 		}
 
 		double indv = 1;
 		while(indv>thr){
 			oldvi = v;
-			vtild = v + ((Xhat.transpose())*u - Sv*v)/Lv;
+			vtild = v + ((xhat.transpose())*u - Sv*v)/Lv;
 			v = soft_thr(vtild, lamv/Lv, posv);
-			double vnorm = Norm(v);
+			double vnorm = v.lpNorm<2>();
 			if(vnorm>0){
 				double mod = ((v.transpose())*Sv*v)(0,0);
 				mod = std::sqrt(mod);
 				v = v/mod;
 			}
 			else{
-				v = MatrixXd::Zero(p,1);
+				v = VectorXd::Zero(p,1);
 			}
-			indv = Norm(v-oldvi)/Norm(oldvi);
+			indv = (v-oldvi).lpNorm<2>()/oldvi.lpNorm<2>();
 		}
 
-		indo = Norm(oldu-u)/Norm(oldu) + Norm(oldv-v)/Norm(oldv);
+		indo = (oldu-u).lpNorm<2>()/oldu.lpNorm<2>() + (oldv-v).lpNorm<2>()/oldv.lpNorm<2>();
 		iter++;
 	}
-	Answer[0] = u/Norm(u);
-	Answer[1] = v/Norm(v);
-	Answer[2] = (Answer[0].transpose())*Xhat*Answer[1];
-	Answer[3] = Xhat - (Answer[2](0,0))*Answer[0]*(Answer[1].transpose());
-	return Answer;
+
+	*U = u/u.lpNorm<2>();
+	*V = v/v.lpNorm<2>();
+	*D = (((*U).transpose())*xhat*(*V))(0,0);
+	*Xhat = xhat - (*D)*(*U)*((*V).transpose());
+	return;
 }
