@@ -1,0 +1,4 @@
+useDynLib(Sparse-and-Functional-PCA)
+import(RcppEigen)
+importFrom(Rcpp, evalCpp)
+exportPattern("^[[:alpha:]]+")

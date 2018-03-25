@@ -1,0 +1,14 @@
+Package: Sparse-and-Functional-PCA
+Type: Package
+Title: What the Package Does Using Title Case
+Version: 1.0
+Date: 2018-03-22
+Author: Your Name
+Maintainer: Your Name <your@email.com>
+Description: More details about what the package does. See
+        <http://http://cran.r-project.org/doc/manuals/r-release/R-exts.html#The-DESCRIPTION-file>
+        for details on how to write this part.
+License: GPL (>= 2)
+Imports: Rcpp (>= 0.12.16), RcppEigen (>= 0.3.3.4.0)
+LinkingTo: Rcpp, RcppEigen
+Suggests: testthat

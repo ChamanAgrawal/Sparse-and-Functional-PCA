@@ -35,8 +35,8 @@ using namespace Rcpp;
 using Eigen::MatrixXd;                  // variable size matrix, double precision
 using Eigen::VectorXd;                  // variable size vector, double precision
 
-
 //proximal operator
+// [[Rcpp::export]]
 VectorXd soft_thr(VectorXd a, double lam, bool pos){
 	VectorXd temp,b,SignMat;
 	if(!pos){
